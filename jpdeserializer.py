@@ -12,6 +12,7 @@ any serialized object. It's even possible to create Object from scratch and save
 from java.io import ObjectInputStream, FileInputStream, FileOutputStream, BufferedOutputStream, ObjectOutputStream
 from java.lang import ClassNotFoundException
 import argparse
+import base64
 import jarray
 import array
 import types
@@ -55,6 +56,7 @@ for element in args.classpath:
             a = jarLoad.addFile(os.path.abspath(element))
     except:
             sys.exit (sys.exc_info())
+
 inputFileStream = FileInputStream(args.object)
 objectInputStream = ObjectInputStream(inputFileStream)
 
@@ -64,43 +66,46 @@ except ClassNotFoundException as cnf:
     print("Error: Unable to decode object, missing class '{0}'".format(cnf.message))
     sys.exit(0)
 
-def import_all(package):
-    """
-    Import all classes in a package
-    """
-    for element in dir(package):
-        tmp = getattr(package,str(element))
-        if type(tmp).__name__ == "Class":
-            clazz = getattr(package, element)
-            globals().update({element: clazz})
-        elif type(tmp).__name__ == "javapackage":
-            import_all(tmp)
+def import_all():
+    imported_elements = 0
+    imports = {
+        "java.io": ["Closeable","DataInput","DataOutput", "Externalizable", "FileFilter", "FilenameFilter", "Flushable", "ObjectInput", "ObjectInputValidation", "ObjectOutput", "ObjectStreamConstants", "Serializable","BufferedInputStream","BufferedOutputStream","BufferedReader","BufferedWriter","ByteArrayInputStream","ByteArrayOutputStream","CharArrayReader","CharArrayWriter","Console","DataInputStream","DataOutputStream","File","FileDescriptor","FileInputStream","FileOutputStream","FilePermission","FileReader","FileWriter","FilterInputStream","FilterOutputStream","FilterReader","FilterWriter","InputStream","InputStreamReader","LineNumberInputStream","LineNumberReader","ObjectInputStream","ObjectInputStream.GetField","ObjectOutputStream","ObjectOutputStream.PutField","ObjectStreamClass","ObjectStreamField","OutputStream","OutputStreamWriter","PipedInputStream","PipedOutputStream","PipedReader","PipedWriter","PrintStream","PrintWriter","PushbackInputStream","PushbackReader","RandomAccessFile","Reader","SequenceInputStream","SerializablePermission","StreamTokenizer","StringBufferInputStream","StringReader","StringWriter","Writer","CharConversionException","EOFException", "FileNotFoundException", "InterruptedIOException", "InvalidClassException", "InvalidObjectException", "IOException", "NotActiveException", "NotSerializableException", "ObjectStreamException", "OptionalDataException", "StreamCorruptedException", "SyncFailedException", "UnsupportedEncodingException","UTFDataFormatException", "WriteAbortedException", "IOError"],
+        "java.lang": ["Appendable","AutoCloseable","CharSequence","Cloneable","Comparable","Iterable","Readable","Runnable","Thread.UncaughtExceptionHandler","Boolean","Byte","Character","Character.Subset","Character.UnicodeBlock","Class","ClassLoader","ClassValue","Compiler","Double","Enum","Float","InheritableThreadLocal","Integer","Long","Math","Number","Object","Package","Process","ProcessBuilder","ProcessBuilder.Redirect","Runtime","RuntimePermission","SecurityManager","Short","StackTraceElement","StrictMath","String","StringBuffer","StringBuilder","System","Thread","ThreadGroup","ThreadLocal","Throwable","Void","ArithmeticException","ArrayIndexOutOfBoundsException","ArrayStoreException","ClassCastException","ClassNotFoundException","CloneNotSupportedException","EnumConstantNotPresentException","Exception","IllegalAccessException","IllegalArgumentException","IllegalMonitorStateException","IllegalStateException","IllegalThreadStateException","IndexOutOfBoundsException","InstantiationException","InterruptedException","NegativeArraySizeException","NoSuchFieldException","NoSuchMethodException","NullPointerException","NumberFormatException","ReflectiveOperationException","RuntimeException","SecurityException","StringIndexOutOfBoundsException","TypeNotPresentException","UnsupportedOperationException","AbstractMethodError","AssertionError","BootstrapMethodError","ClassCircularityError","ClassFormatError","Error","ExceptionInInitializerError","IllegalAccessError","IncompatibleClassChangeError","InstantiationError","InternalError","LinkageError","NoClassDefFoundError","NoSuchFieldError","NoSuchMethodError","OutOfMemoryError","StackOverflowError","ThreadDeath","UnknownError","UnsatisfiedLinkError","UnsupportedClassVersionError","VerifyError","VirtualMachineError"],
+        "java.nio": ["Buffer","ByteBuffer","ByteOrder","CharBuffer","DoubleBuffer","FloatBuffer","IntBuffer","LongBuffer","MappedByteBuffer","ShortBuffer","BufferOverflowException","BufferUnderflowException","InvalidMarkException","ReadOnlyBufferException"],
+        "java.util": ["Base64","Collection","Comparator","Deque","Enumeration","EventListener","Formattable","Iterator","List","ListIterator","Map","Map.Entry","NavigableMap","NavigableSet","Observer","Queue","RandomAccess","Set","SortedMap","SortedSet","AbstractCollection","AbstractList","AbstractMap","AbstractMap.SimpleEntry","AbstractMap.SimpleImmutableEntry","AbstractQueue","AbstractSequentialList","AbstractSet","ArrayDeque","ArrayList","Arrays","BitSet","Calendar","Collections","Currency","Date","Dictionary","EnumMap","EnumSet","EventListenerProxy","EventObject","FormattableFlags","Formatter","GregorianCalendar","HashMap","HashSet","Hashtable","IdentityHashMap","LinkedHashMap","LinkedHashSet","LinkedList","ListResourceBundle","Locale","Locale.Builder","Objects","Observable","PriorityQueue","Properties","PropertyPermission","PropertyResourceBundle","Random","ResourceBundle","ResourceBundle.Control","Scanner","ServiceLoader","SimpleTimeZone","Stack","StringTokenizer","Timer","TimerTask","TimeZone","TreeMap","TreeSet","UUID","Vector","WeakHashMap","ConcurrentModificationException","DuplicateFormatFlagsException","EmptyStackException","FormatFlagsConversionMismatchException","FormatterClosedException","IllegalFormatCodePointException","IllegalFormatConversionException","IllegalFormatException","IllegalFormatFlagsException","IllegalFormatPrecisionException","IllegalFormatWidthException","IllformedLocaleException","InputMismatchException","InvalidPropertiesFormatException","MissingFormatArgumentException","MissingFormatWidthException","MissingResourceException","NoSuchElementException","TooManyListenersException","UnknownFormatConversionException","UnknownFormatFlagsException","ServiceConfigurationError"],
+        "java.net": ["ContentHandlerFactory","CookiePolicy","CookieStore","DatagramSocketImplFactory","FileNameMap","ProtocolFamily","SocketImplFactory","SocketOption","SocketOptions","URLStreamHandlerFactory","Authenticator","CacheRequest","CacheResponse","ContentHandler","CookieHandler","CookieManager","DatagramPacket","DatagramSocket","DatagramSocketImpl","HttpCookie","HttpURLConnection","IDN","Inet4Address","Inet6Address","InetAddress","InetSocketAddress","InterfaceAddress","JarURLConnection","MulticastSocket","NetPermission","NetworkInterface","PasswordAuthentication","Proxy","ProxySelector","ResponseCache","SecureCacheResponse","ServerSocket","Socket","SocketAddress","SocketImpl","SocketPermission","StandardSocketOptions","URI","URL","URLClassLoader","URLConnection","URLDecoder","URLEncoder","URLStreamHandler","BindException","ConnectException","HttpRetryException","MalformedURLException","NoRouteToHostException","PortUnreachableException","ProtocolException","SocketException","SocketTimeoutException","UnknownHostException","UnknownServiceException","URISyntaxException"],
+    }
+    for k in imports.keys():
+        for element in imports[k]:
+            try:
+                clazz = __import__('{0}.{1}'.format(k, element), globals(), locals(), ['object'], -1)
+                globals().update({str(element): clazz})
+                imported_elements += 1
+            except ImportError:
+                pass
+            except Exception:
+                pass
+    print("[+] Imported {0} classes".format(imported_elements))
 
 def custom_to_list(obj):
-    for i in range(0, len(obj)):
-        if type(obj[i]) == array.array:
-            obj[i] == obj[i].tolist()
-            obj[i] = custom_to_list(obj[i])
-    if type(obj) == array.array:
-        return obj.tolist()
-    else:
+    try:
+        for i in range(0, len(obj)):
+            if type(obj[i]) == array.array:
+                obj[i] == obj[i].tolist()
+                obj[i] = custom_to_list(obj[i])
+        if type(obj) == array.array:
+            return obj.tolist()
+        else:
+            return obj
+    except:
         return obj
 
-class JavaObject(object):
+class Graph(object):
     """
     Represent our Java deserialized object
     """
-    def __init__(self, obj):
-        self.obj = obj
-        sys.displayhook = self.show_graph
-
-    def __getitem__(self, item):
-        return self.obj.__getitem__(item)
-
-    def show_graph(self, obj, last_len=0, called=0, prefix=""):
-
-        if type(obj) == JavaObject:
-            obj = obj.obj
+    @staticmethod
+    def show_graph(obj, last_len=0, called=0, prefix=""):
 
         def is_iterable(obj):
             if type(obj) == list:
@@ -126,19 +131,34 @@ class JavaObject(object):
             print(u"{0}  {1}<{2}>".format(len_2_graph(last_len, called), "[{0}]".format(prefix) if prefix else "", type(obj).__name__))
             last_len += len(type(obj).__name__) + 3
             for index in range(0, len(obj)):
-                self.show_graph(obj[index], last_len, called=called+1, prefix=str(index))
+                Graph.show_graph(obj[index], last_len, called=called+1, prefix=str(index))
         else:
             if type(obj) in [unicode]:
                 print u"{0}  {1}(String) => {2}".format(len_2_graph(last_len, called), "[{0}]".format(prefix) if prefix else "", obj)
             else:
                 print u"{0}  {1}({2}) => {3}".format(len_2_graph(last_len, called), "[{0}]".format(prefix) if prefix else "", type(obj).__name__, obj)
 
+def b64(obj):
+    """
+    Convert an object to its Base64 representation
+
+    :param obj: The object to convert
+    :returns: This method return a string (the base64 representation of the object)
+    """
+    baos = ByteArrayOutputStream()
+    oos = ObjectOutputStream( baos )
+    oos.writeObject(obj)
+    oos.close()
+    return Base64.getEncoder().encodeToString(baos.toByteArray())
+
 def serialize(obj, filename):
     """
-    Serialize an object
+    Serialize an object and save it to filename
+
+    :param obj: The object to serialize
+    :param filename: This is the file whereto save object
+    :returns: This method return null
     """
-    if type(obj) == JavaObject:
-        obj = obj.obj
     try:
         outfile = FileOutputStream(filename)
         output = ObjectOutputStream(outfile)
@@ -149,20 +169,24 @@ def serialize(obj, filename):
 
 def q():
     """
-    Quit the application
+    Quit the interactive console
+
+    :returns: This method return null and exit with exitcode 0
     """
     sys.exit(0)
 
 def clear():
     """
     Clear the screen
+
+    :returns: This method return null
     """
     os.system("cls & clear & cls")
 
-import_all(java)
-import_all(org)
-obj = JavaObject(custom_to_list(deserialized))
-globals().update({"available": [serialize, q, clear, import_all]})
+import_all()
+sys.displayhook = Graph.show_graph
+obj = custom_to_list(deserialized)
+globals().update({"available": [serialize, q, clear, b64]})
 vars = globals().copy()
 vars.update(locals())
 shell = code.InteractiveConsole(vars)
